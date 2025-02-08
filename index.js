@@ -150,7 +150,7 @@ app.post("/webhook", async (req, res) => {
     let getsumeiStar = calculateGetsumeiStar(month, honmeiStar);
     getsumeiStar = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
 
-    const replyText = `プチ九星鑑定へご参加ありがとうございます😊\n\n🔸あなたの本命星：${nineStarKiMapping[honmeiStar]}\n🔸あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n🔹あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n🔹あなたの内面・精神面🔹\n${getsumeiStarTraits[getsumeiStar]}\n\n${generateCautionAdvice(honmeiStar)}\n\nぜひ意識してみてくださいね😊`;
+    const replyText = `九星診断へご参加ありがとうございます😊\n\n🔸あなたの本命星：${nineStarKiMapping[honmeiStar]}\n🔸あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n🔹あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n🔹あなたの内面・精神面🔹\n${getsumeiStarTraits[getsumeiStar]}\n\n${generateCautionAdvice(honmeiStar)}\n\nぜひ意識してみてくださいね😊`;
 
     await sendReplyMessage(replyToken, replyText);
   }
