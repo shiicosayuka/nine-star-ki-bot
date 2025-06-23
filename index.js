@@ -137,7 +137,7 @@ app.post("/webhook", async (req, res) => {
   // 2) 必要なデータを取得
   const replyToken = req.body.events?.[0]?.replyToken;
   const text       = req.body.events?.[0]?.message?.text;
-  if (!replyToken || !text) return; // 欠けていれば何もしない
+  if (!replyToken || !text) return;
 
   // ┏━━━━━━━━━━━━━━┓
   // ┃ A: コマンド受信時 ┃
@@ -152,22 +152,15 @@ app.post("/webhook", async (req, res) => {
     return;
   }
 
-  // ┏━━━━━━━━━━━━━━━━━━━┓
-  // ┃ B: 「/」含み → 日付入力候補 ┃
-  // ┗━━━━━━━━━━━━━━━━━━━┛
-  if (text.includes("/")) {
-    // B-1) 形式チェック
-    const dateRegex = /^\d{4}\/\d{1,2}\/\d{1,2}$/;
-    if (!dateRegex.test(text)) {
-      await sendReplyMessage(
-        replyToken,
-        "正しい生年月日を入力してください。（例: 1980/1/1）"
-      );
-      return;
-    }
+  // 日付チェック用正規表現
+  const dateRegex = /^\d{4}\/\d{1,2}\/\d{1,2}$/;
 
-    // B-2) パース＆範囲チェック
+  // ┏━━━━━━━━━━━━━━━━━━┓
+  // ┃ B: 正しい日付形式 ┃
+  // ┗━━━━━━━━━━━━━━━━━━┛
+  if (dateRegex.test(text)) {
     const [year, month, day] = text.split("/").map(v => parseInt(v, 10));
+    // 範囲チェック
     if (
       isNaN(year) || isNaN(month) || isNaN(day) ||
       month < 1 || month > 12 ||
@@ -180,9 +173,7 @@ app.post("/webhook", async (req, res) => {
       return;
     }
 
-    // ┏━━━━━━━━━━━━┓
-    // ┃ C: 鑑定ロジック ┃
-    // ┗━━━━━━━━━━━━┛
+    // C: 鑑定ロジック
     const honmeiStar = calculateHonmeiStar(year, month, day);
     let getsumeiStar = calculateGetsumeiStar(month, honmeiStar);
     getsumeiStar     = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
@@ -201,12 +192,23 @@ app.post("/webhook", async (req, res) => {
   }
 
   // ┏━━━━━━━━━━━━━━━━━━┓
+  // ┃ C: "/"含むが不正 ┃
+  // ┗━━━━━━━━━━━━━━━━━━┛
+  if (text.includes("/")) {
+    await sendReplyMessage(
+      replyToken,
+      "正しい生年月日を入力してください。（例: 1980/1/1）"
+    );
+    return;
+  }
+
+  // ┏━━━━━━━━━━━━━━━━━━┓
   // ┃ D: その他のテキスト ┃
   // ┗━━━━━━━━━━━━━━━━━━┛
-  // → 何も返さない（あるいはメニュー送信などに差し替え可）
+  // → 何も返さない
 });
 
-// 📩 LINEへ返信メッセージを送る関数（そのまま）
+// 📩 LINEへ返信メッセージを送る関数
 async function sendReplyMessage(replyToken, message) {
   try {
     await axios.post(
@@ -235,4 +237,3 @@ async function sendReplyMessage(replyToken, message) {
 app.listen(port, () => {
   console.log(`🚀 サーバーが起動しました！ポート番号：${port}`);
 });
-
