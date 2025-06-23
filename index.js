@@ -34,19 +34,19 @@ const calculateHonmeiStar = (year, month, day) => {
   let sum = year
     .toString()
     .split("")
-    .reduce((a, b) => a + parseInt(b), 0);
+    .reduce((a, b) => a + parseInt(b, 10), 0);
   while (sum > 9) {
     sum = sum
       .toString()
       .split("")
-      .reduce((a, b) => a + parseInt(b), 0);
+      .reduce((a, b) => a + parseInt(b, 10), 0);
   }
   return (11 - sum) % 9 || 9;
 };
 
 // 🔹 月命星の計算ロジック
 const calculateGetsumeiStar = (month, honmeiStar) => {
-  const getsumeiStarTable = {
+  const table = {
     1: [6, 3, 9],
     2: [8, 5, 2],
     3: [7, 4, 1],
@@ -60,29 +60,19 @@ const calculateGetsumeiStar = (month, honmeiStar) => {
     11: [8, 5, 2],
     12: [7, 4, 1],
   };
-  let index = [1, 4, 7].includes(honmeiStar)
+  const idx = [1, 4, 7].includes(honmeiStar)
     ? 0
     : [3, 6, 9].includes(honmeiStar)
       ? 1
       : 2;
-  return getsumeiStarTable[month][index];
+  return table[month][idx];
 };
 
-// 🔄 本命星と月命星が一致した場合の変換ロジック
+// 🔄 重複時の変換
 const adjustDuplicateGetsumeiStar = (honmeiStar, getsumeiStar) => {
   if (honmeiStar === getsumeiStar) {
-    const conversionTable = {
-      1: 9,
-      2: 6,
-      3: 4,
-      4: 3,
-      5: 7,
-      6: 2,
-      7: 8,
-      8: 7,
-      9: 1,
-    };
-    return conversionTable[honmeiStar];
+    const conv = {1:9,2:6,3:4,4:3,5:7,6:2,7:8,8:7,9:1};
+    return conv[honmeiStar];
   }
   return getsumeiStar;
 };
@@ -114,7 +104,7 @@ const getsumeiStarTraits = {
 };
 
 // 🌈 開運ポイント
-const generateCautionAdvice = (honmeiStar) => {
+const generateCautionAdvice = honmeiStar => {
   const advice = {
     1: "思い込みすぎず、周囲の意見を取り入れるとより開運されます。",
     2: "慎重になりすぎず、時には思い切って行動することで運気が高まります。",
@@ -131,17 +121,16 @@ const generateCautionAdvice = (honmeiStar) => {
 
 // 📩 Webhook 受信エンドポイント（修正版）
 app.post("/webhook", async (req, res) => {
-  // 1) まずは 200 OK を返す
+  // 1) まずは 200 OK
   res.sendStatus(200);
 
-  // 2) 必要なデータを取得
+  // 2) トークンとトリム済みテキスト取得
   const replyToken = req.body.events?.[0]?.replyToken;
-  const text       = req.body.events?.[0]?.message?.text;
+  const rawText    = req.body.events?.[0]?.message?.text;
+  const text       = rawText ? rawText.trim() : "";
   if (!replyToken || !text) return;
 
-  // ┏━━━━━━━━━━━━━━┓
-  // ┃ A: コマンド受信時 ┃
-  // ┗━━━━━━━━━━━━━━┛
+  // A: コマンド「宿命診断」
   if (text === "宿命診断") {
     await sendReplyMessage(
       replyToken,
@@ -155,16 +144,12 @@ app.post("/webhook", async (req, res) => {
   // 日付チェック用正規表現
   const dateRegex = /^\d{4}\/\d{1,2}\/\d{1,2}$/;
 
-  // ┏━━━━━━━━━━━━━━━━━━┓
-  // ┃ B: 正しい日付形式 ┃
-  // ┗━━━━━━━━━━━━━━━━━━┛
+  // B: 正しい日付形式
   if (dateRegex.test(text)) {
     const [year, month, day] = text.split("/").map(v => parseInt(v, 10));
-    // 範囲チェック
     if (
-      isNaN(year) || isNaN(month) || isNaN(day) ||
-      month < 1 || month > 12 ||
-      day   < 1 || day   > 31
+      isNaN(year)|| isNaN(month)|| isNaN(day)||
+      month<1||month>12||day<1||day>31
     ) {
       await sendReplyMessage(
         replyToken,
@@ -172,28 +157,25 @@ app.post("/webhook", async (req, res) => {
       );
       return;
     }
-
-    // C: 鑑定ロジック
-    const honmeiStar = calculateHonmeiStar(year, month, day);
-    let getsumeiStar = calculateGetsumeiStar(month, honmeiStar);
-    getsumeiStar     = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
+    // C: 鑑定
+    const honmeiStar    = calculateHonmeiStar(year, month, day);
+    let getsumeiStar    = calculateGetsumeiStar(month, honmeiStar);
+    getsumeiStar        = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
 
     const resultText =
-      `九星診断へご参加ありがとうございます😊\n\n` +
-      `🔸あなたの本命星：${nineStarKiMapping[honmeiStar]}\n` +
-      `🔸あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n` +
-      `🔹あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n` +
-      `🔹あなたの内面・精神面🔹\n${getsumeiStarTraits[getsumeiStar]}\n\n` +
-      `${generateCautionAdvice(honmeiStar)}\n\n` +
+      `九星診断へご参加ありがとうございます😊\n\n`+
+      `🔸あなたの本命星：${nineStarKiMapping[honmeiStar]}\n`+
+      `🔸あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n`+
+      `🔹あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n`+
+      `🔹あなたの内面・精神面🔹\n${getsumeiStarTraits[getsumeiStar]}\n\n`+
+      `${generateCautionAdvice(honmeiStar)}\n\n`+
       `ぜひ意識してみてくださいね😊`;
 
     await sendReplyMessage(replyToken, resultText);
     return;
   }
 
-  // ┏━━━━━━━━━━━━━━━━━━┓
-  // ┃ C: "/"含むが不正 ┃
-  // ┗━━━━━━━━━━━━━━━━━━┛
+  // C: "/"含むが不正
   if (text.includes("/")) {
     await sendReplyMessage(
       replyToken,
@@ -202,10 +184,7 @@ app.post("/webhook", async (req, res) => {
     return;
   }
 
-  // ┏━━━━━━━━━━━━━━━━━━┓
-  // ┃ D: その他のテキスト ┃
-  // ┗━━━━━━━━━━━━━━━━━━┛
-  // → 何も返さない
+  // D: その他 → 無応答
 });
 
 // 📩 LINEへ返信メッセージを送る関数
