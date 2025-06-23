@@ -146,8 +146,8 @@ app.post("/webhook", async (req, res) => {
     await sendReplyMessage(
       replyToken,
       "宿命診断を行います。\n" +
-      "あなたの生年月日をこちらに入力してください。\n" +
-      "入力例：1980/1/1"
+      "あなたの生年月日をこちらに入力してください😊\n" +
+      "入力形式例：1980/1/1"
     );
     return;
   }
