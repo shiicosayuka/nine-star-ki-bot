@@ -161,7 +161,7 @@ app.post("/webhook", async (req, res) => {
     if (!dateRegex.test(text)) {
       await sendReplyMessage(
         replyToken,
-        "正しい生年月日を入力してください。（例: 1990/5/12）"
+        "正しい生年月日を入力してください。（例: 1980/1/1）"
       );
       return;
     }
@@ -175,7 +175,7 @@ app.post("/webhook", async (req, res) => {
     ) {
       await sendReplyMessage(
         replyToken,
-        "正しい生年月日を入力してください。（例: 1990/5/12）"
+        "正しい生年月日を入力してください。（例: 1980/1/1）"
       );
       return;
     }
