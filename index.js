@@ -12,6 +12,7 @@ if (!LINE_CHANNEL_ACCESS_TOKEN) {
   console.error("🚨 LINE_CHANNEL_ACCESS_TOKEN が設定されていません！");
   process.exit(1);
 }
+
 // ⭐ 九星気学の本命星マッピング
 const nineStarKiMapping = {
   1: "一白水星",
@@ -128,35 +129,84 @@ const generateCautionAdvice = (honmeiStar) => {
   return `🌈開運ポイント🌈\n${advice[honmeiStar]}`;
 };
 
-// 📩 Webhook 受信エンドポイント
+// 📩 Webhook 受信エンドポイント（修正版）
 app.post("/webhook", async (req, res) => {
-  console.log("📩 Webhook 受信データ:", JSON.stringify(req.body, null, 2));
+  // 1) まずは 200 OK を返す
   res.sendStatus(200);
 
+  // 2) 必要なデータを取得
   const replyToken = req.body.events?.[0]?.replyToken;
-  const receivedMessage = req.body.events?.[0]?.message?.text;
+  const text       = req.body.events?.[0]?.message?.text;
+  if (!replyToken || !text) return; // 欠けていれば何もしない
 
-  if (replyToken && receivedMessage) {
-    const [year, month, day] = receivedMessage.split("/").map(Number);
-    if (!year || !month || !day) {
+  // ┏━━━━━━━━━━━━━━┓
+  // ┃ A: コマンド受信時 ┃
+  // ┗━━━━━━━━━━━━━━┛
+  if (text === "宿命診断") {
+    await sendReplyMessage(
+      replyToken,
+      "宿命診断を行います。\n" +
+      "あなたの生年月日をこちらに入力してください。\n" +
+      "入力例：1980/1/1"
+    );
+    return;
+  }
+
+  // ┏━━━━━━━━━━━━━━━━━━━┓
+  // ┃ B: 「/」含み → 日付入力候補 ┃
+  // ┗━━━━━━━━━━━━━━━━━━━┛
+  if (text.includes("/")) {
+    // B-1) 形式チェック
+    const dateRegex = /^\d{4}\/\d{1,2}\/\d{1,2}$/;
+    if (!dateRegex.test(text)) {
       await sendReplyMessage(
         replyToken,
-        "正しい生年月日を入力してください。（例: 1990/5/12）",
+        "正しい生年月日を入力してください。（例: 1990/5/12）"
       );
       return;
     }
 
+    // B-2) パース＆範囲チェック
+    const [year, month, day] = text.split("/").map(v => parseInt(v, 10));
+    if (
+      isNaN(year) || isNaN(month) || isNaN(day) ||
+      month < 1 || month > 12 ||
+      day   < 1 || day   > 31
+    ) {
+      await sendReplyMessage(
+        replyToken,
+        "正しい生年月日を入力してください。（例: 1990/5/12）"
+      );
+      return;
+    }
+
+    // ┏━━━━━━━━━━━━┓
+    // ┃ C: 鑑定ロジック ┃
+    // ┗━━━━━━━━━━━━┛
     const honmeiStar = calculateHonmeiStar(year, month, day);
     let getsumeiStar = calculateGetsumeiStar(month, honmeiStar);
-    getsumeiStar = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
+    getsumeiStar     = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
 
-    const replyText = `九星診断へご参加ありがとうございます😊\n\n🔸あなたの本命星：${nineStarKiMapping[honmeiStar]}\n🔸あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n🔹あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n🔹あなたの内面・精神面🔹\n${getsumeiStarTraits[getsumeiStar]}\n\n${generateCautionAdvice(honmeiStar)}\n\nぜひ意識してみてくださいね😊`;
+    const resultText =
+      `九星診断へご参加ありがとうございます😊\n\n` +
+      `🔸あなたの本命星：${nineStarKiMapping[honmeiStar]}\n` +
+      `🔸あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n` +
+      `🔹あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n` +
+      `🔹あなたの内面・精神面🔹\n${getsumeiStarTraits[getsumeiStar]}\n\n` +
+      `${generateCautionAdvice(honmeiStar)}\n\n` +
+      `ぜひ意識してみてくださいね😊`;
 
-    await sendReplyMessage(replyToken, replyText);
+    await sendReplyMessage(replyToken, resultText);
+    return;
   }
+
+  // ┏━━━━━━━━━━━━━━━━━━┓
+  // ┃ D: その他のテキスト ┃
+  // ┗━━━━━━━━━━━━━━━━━━┛
+  // → 何も返さない（あるいはメニュー送信などに差し替え可）
 });
 
-// 📩 LINEへ返信メッセージを送る関数
+// 📩 LINEへ返信メッセージを送る関数（そのまま）
 async function sendReplyMessage(replyToken, message) {
   try {
     await axios.post(
@@ -185,3 +235,4 @@ async function sendReplyMessage(replyToken, message) {
 app.listen(port, () => {
   console.log(`🚀 サーバーが起動しました！ポート番号：${port}`);
 });
+
