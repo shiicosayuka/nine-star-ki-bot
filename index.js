@@ -164,7 +164,7 @@ app.post("/webhook", async (req, res) => {
     getsumeiStar     = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
 
     const resultText =
-      `九星診断へご参加ありがとうございます😊\n\n`+
+      `宿命診断へご参加ありがとうございます😊\n\n`+
       `🔸あなたの本命星：${nineStarKiMapping[honmeiStar]}\n`+
       `🔸あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n`+
       `🔹あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n`+
