@@ -170,7 +170,7 @@ app.post("/webhook", async (req, res) => {
       `🔹あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n`+
       `🔹あなたの内面・精神面🔹\n${getsumeiStarTraits[getsumeiStar]}\n\n`+
       `${generateCautionAdvice(honmeiStar)}\n\n`+
-      `ぜひ意識してみてくださいね😊`;
+      `ぜひ意識してみてくださいね😊あなただけの宿命やバイオリズムなどはさらに詳しく鑑定でお話しできます。`;
 
     await sendReplyMessage(replyToken, resultText);
     return;
