@@ -208,11 +208,11 @@ try {
 
 
     const resultText =
-      `宿命診断へご参加ありがとうございます😊\n\n`+
-      `🔸あなたの本命星：${nineStarKiMapping[honmeiStar]}\n`+
-      `🔸あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n`+
-      `🔹あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n`+
-      `🔹あなたの内面・精神面🔹\n${getsumeiStarTraits[getsumeiStar]}\n\n`+
+      `宿命診断へご参加ありがとうございます✨\n\n`+
+      `・あなたの本命星：${nineStarKiMapping[honmeiStar]}\n`+
+      `・あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n`+
+      `・あなたの本質・性格🔹\n${honmeiStarTraits[honmeiStar]}\n\n`+
+      `・あなたの内面・精神面🔹\n${getsumeiStarTraits[getsumeiStar]}\n\n`+
       `${generateCautionAdvice(honmeiStar)}\n\n`+
       `ぜひ意識してみてくださいね😊あなただけの宿命やバイオリズムなどはさらに詳しく鑑定でお話しできます。`;
 
