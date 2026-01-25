@@ -47,6 +47,23 @@ const calculateHonmeiStar = (year, month, day) => {
   return (11 - sum) % 9 || 9;
 };
 
+// 🔄 本命星：気学年から計算（節替り判定は万年暦で getKigakuYear 済み）
+const calculateHonmeiStarFromKigakuYear = (kigakuYear) => {
+  let sum = kigakuYear
+    .toString()
+    .split("")
+    .reduce((a, b) => a + parseInt(b, 10), 0);
+
+  while (sum > 9) {
+    sum = sum
+      .toString()
+      .split("")
+      .reduce((a, b) => a + parseInt(b, 10), 0);
+  }
+  return (11 - sum) % 9 || 9;
+};
+
+
 // 🔹 月命星の計算ロジック
 const calculateGetsumeiStar = (month, honmeiStar) => {
   const table = {
