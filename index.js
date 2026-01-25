@@ -192,6 +192,7 @@ try {
   // 本命星：気学年から算出
   honmeiStar = calculateHonmeiStarFromKigakuYear(kigakuYear);
 
+
   // 月命星：西暦月ではなく「気学月」を使う
   getsumeiStar = calculateGetsumeiStar(kigakuMonth, honmeiStar);
   getsumeiStar = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
