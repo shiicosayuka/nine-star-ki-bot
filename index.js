@@ -171,8 +171,6 @@ try {
   const kigakuYear  = getKigakuYear(dateUtc, year);
   const kigakuMonth = getKigakuMonth(dateUtc, year);
 
-  // 👇これを入れる
-  await sendReplyMessage(replyToken, `DEBUG: kigakuYear=${kigakuYear}, kigakuMonth=${kigakuMonth}`);
   
   // 本命星：気学年から算出
   honmeiStar = calculateHonmeiStarFromKigakuYear(kigakuYear);
