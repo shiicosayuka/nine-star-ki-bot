@@ -161,10 +161,31 @@ app.post("/webhook", async (req, res) => {
       );
       return;
     }
-    // C: 鑑定
-    const honmeiStar = calculateHonmeiStar(year, month, day);
-    let getsumeiStar = calculateGetsumeiStar(month, honmeiStar);
-    getsumeiStar     = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
+    // C: 鑑定（節替り対応）
+let honmeiStar, getsumeiStar;
+
+try {
+  const dateUtc = toUtcDate(year, month, day);
+
+  // 節替りで判定した気学年・気学月
+  const kigakuYear  = getKigakuYear(dateUtc, year);
+  const kigakuMonth = getKigakuMonth(dateUtc, year);
+
+  // 本命星：気学年から算出
+  honmeiStar = calculateHonmeiStarFromKigakuYear(kigakuYear);
+
+  // 月命星：西暦月ではなく「気学月」を使う
+  getsumeiStar = calculateGetsumeiStar(kigakuMonth, honmeiStar);
+  getsumeiStar = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
+
+} catch (e) {
+  await sendReplyMessage(
+    replyToken,
+    "万年暦データの範囲外です（現在は1950〜2068年に対応しています）"
+  );
+  return;
+}
+
 
     const resultText =
       `宿命診断へご参加ありがとうございます😊\n\n`+
