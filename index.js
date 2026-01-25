@@ -182,10 +182,11 @@ try {
 } catch (e) {
   await sendReplyMessage(
     replyToken,
-    "万年暦データの範囲外です（現在は1950〜2068年に対応しています）"
+    `万年暦エラー: ${e.message}`
   );
   return;
 }
+
 
 
     const resultText =
