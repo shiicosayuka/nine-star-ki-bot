@@ -1,8 +1,6 @@
 require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
-
-// 👇ここに追加でOK
 const { toUtcDate, getKigakuYear, getKigakuMonth } = require("./kigakuDate");
 
 const app = express();
@@ -15,6 +13,12 @@ if (!LINE_CHANNEL_ACCESS_TOKEN) {
   console.error("🚨 LINE_CHANNEL_ACCESS_TOKEN が設定されていません！");
   process.exit(1);
 }
+
+// ========================================
+// セッション管理（五黄土星待ち状態を保持）
+// { userId: { year, month, day, honmeiStar, awaitingGender: true } }
+// ========================================
+const sessions = {};
 
 // ⭐ 九星気学の本命星マッピング
 const nineStarKiMapping = {
@@ -29,31 +33,12 @@ const nineStarKiMapping = {
   9: "九紫火星",
 };
 
-// 🔄 本命星の計算ロジック
-const calculateHonmeiStar = (year, month, day) => {
-  if (month === 1 || (month === 2 && day <= 3)) {
-    year -= 1;
-  }
-  let sum = year
-    .toString()
-    .split("")
-    .reduce((a, b) => a + parseInt(b, 10), 0);
-  while (sum > 9) {
-    sum = sum
-      .toString()
-      .split("")
-      .reduce((a, b) => a + parseInt(b, 10), 0);
-  }
-  return (11 - sum) % 9 || 9;
-};
-
-// 🔄 本命星：気学年から計算（節替り判定は万年暦で getKigakuYear 済み）
+// 🔄 本命星：気学年から計算
 const calculateHonmeiStarFromKigakuYear = (kigakuYear) => {
   let sum = kigakuYear
     .toString()
     .split("")
     .reduce((a, b) => a + parseInt(b, 10), 0);
-
   while (sum > 9) {
     sum = sum
       .toString()
@@ -63,19 +48,18 @@ const calculateHonmeiStarFromKigakuYear = (kigakuYear) => {
   return (11 - sum) % 9 || 9;
 };
 
-
 // 🔹 月命星の計算ロジック
 const calculateGetsumeiStar = (month, honmeiStar) => {
   const table = {
-    1: [6, 3, 9],
-    2: [8, 5, 2],
-    3: [7, 4, 1],
-    4: [6, 3, 9],
-    5: [5, 2, 8],
-    6: [4, 1, 7],
-    7: [3, 9, 6],
-    8: [2, 8, 5],
-    9: [1, 7, 4],
+    1:  [6, 3, 9],
+    2:  [8, 5, 2],
+    3:  [7, 4, 1],
+    4:  [6, 3, 9],
+    5:  [5, 2, 8],
+    6:  [4, 1, 7],
+    7:  [3, 9, 6],
+    8:  [2, 8, 5],
+    9:  [1, 7, 4],
     10: [9, 6, 3],
     11: [8, 5, 2],
     12: [7, 4, 1],
@@ -83,15 +67,15 @@ const calculateGetsumeiStar = (month, honmeiStar) => {
   const idx = [1, 4, 7].includes(honmeiStar)
     ? 0
     : [3, 6, 9].includes(honmeiStar)
-      ? 1
-      : 2;
+    ? 1
+    : 2;
   return table[month][idx];
 };
 
-// 🔄 重複時の変換
+// 🔄 重複時の変換（五黄土星以外の重複）
 const adjustDuplicateGetsumeiStar = (honmeiStar, getsumeiStar) => {
   if (honmeiStar === getsumeiStar) {
-    const conv = {1:9,2:6,3:4,4:3,5:7,6:2,7:8,8:7,9:1};
+    const conv = { 1: 9, 2: 6, 3: 4, 4: 3, 5: 7, 6: 2, 7: 8, 8: 7, 9: 1 };
     return conv[honmeiStar];
   }
   return getsumeiStar;
@@ -124,7 +108,7 @@ const getsumeiStarTraits = {
 };
 
 // 🌈 開運ポイント
-const generateCautionAdvice = honmeiStar => {
+const generateCautionAdvice = (honmeiStar) => {
   const advice = {
     1: "思い込みすぎず、周囲の意見を取り入れるとより開運されます。",
     2: "慎重になりすぎず、時には思い切って行動することで運気が高まります。",
@@ -139,38 +123,110 @@ const generateCautionAdvice = honmeiStar => {
   return `🌈開運ポイント🌈\n${advice[honmeiStar]}`;
 };
 
+
+
+// 📝 結果メッセージ生成
+// gender: undefined=通常 / "male"=男性（五黄→七赤） / "female"=女性（五黄→六白）
+const buildResultText = (honmeiStar, getsumeiStar, gender = undefined) => {
+  // 月命星の表示行を組み立て
+  let getsumeiLine;
+  if (gender === "male") {
+    // 五黄土星・男性 → 七赤金星
+    getsumeiLine =
+      `・あなたの月命星：五黄土星\n` +
+      `　　（男性は七赤金星としてみます）`;
+  } else if (gender === "female") {
+    // 五黄土星・女性 → 六白金星
+    getsumeiLine =
+      `・あなたの月命星：五黄土星\n` +
+      `　　（女性は六白金星としてみます）`;
+  } else {
+    // 通常
+    getsumeiLine = `・あなたの月命星：${nineStarKiMapping[getsumeiStar]}`;
+  }
+
+  return (
+    `宿命診断へご参加ありがとうございます✨\n\n` +
+    `・あなたの本命星：${nineStarKiMapping[honmeiStar]}\n` +
+    `${getsumeiLine}\n\n` +
+    `・あなたの本質・性格 \n${honmeiStarTraits[honmeiStar]}\n\n` +
+    `・あなたの内面・精神面 \n${getsumeiStarTraits[getsumeiStar]}\n\n` +
+    `${generateCautionAdvice(honmeiStar)}\n\n` +
+    `ぜひ意識してみてくださいね😊あなただけの宿命やバイオリズムなどはさらに詳しく鑑定でお話しできます。`
+  );
+};
+
 // 📩 Webhook 受信エンドポイント
 app.post("/webhook", async (req, res) => {
-  // 1) 200 OK
   res.sendStatus(200);
 
-  // 2) トークンとテキスト取得
-  const replyToken = req.body.events?.[0]?.replyToken;
-  const rawText    = req.body.events?.[0]?.message?.text;
-  const text       = rawText ? rawText.trim() : "";
-  if (!replyToken || !text) return;
+  const event = req.body.events?.[0];
+  const replyToken = event?.replyToken;
+  const rawText = event?.message?.text;
+  const userId = event?.source?.userId;
+  const text = rawText ? rawText.trim() : "";
 
-  // A: コマンド
+  if (!replyToken || !text || !userId) return;
+
+  // ========================================
+  // 【性別待ち状態】五黄土星の月命星だった場合
+  // ========================================
+  if (sessions[userId]?.awaitingGender) {
+    const session = sessions[userId];
+
+    let getsumeiStar;
+    let gender;
+
+    if (text === "男性" || text === "男" || text === "おとこ") {
+      // 五黄土星 → 男性 → 七赤金星
+      getsumeiStar = 7;
+      gender = "male";
+    } else if (text === "女性" || text === "女" || text === "おんな") {
+      // 五黄土星 → 女性 → 六白金星
+      getsumeiStar = 6;
+      gender = "female";
+    } else {
+      // 男性・女性以外の入力
+      await sendReplyMessage(
+        replyToken,
+        "「男性」または「女性」とご入力ください😊"
+      );
+      return;
+    }
+
+    // セッションをクリアして結果を返す
+    delete sessions[userId];
+
+    const resultText = buildResultText(session.honmeiStar, getsumeiStar, gender);
+    await sendReplyMessage(replyToken, resultText);
+    return;
+  }
+
+  // ========================================
+  // A: コマンド「宿命診断」
+  // ========================================
   if (text === "宿命診断") {
     await sendReplyMessage(
       replyToken,
       "宿命診断を行います。\n" +
-      "あなたの生年月日をこちらに入力してください😊\n" +
-      "入力形式例：1980/1/1"
+        "あなたの生年月日をこちらに入力してください😊\n" +
+        "入力形式例：1980/1/1"
     );
     return;
   }
 
-  // 日付チェック
+  // ========================================
+  // B: 生年月日の入力
+  // ========================================
   const dateRegex = /^\d{4}\/\d{1,2}\/\d{1,2}$/;
 
-  // B: 正しい形式
   if (dateRegex.test(text)) {
-    const [year, month, day] = text.split("/").map(v => parseInt(v, 10));
+    const [year, month, day] = text.split("/").map((v) => parseInt(v, 10));
+
     if (
       isNaN(year) || isNaN(month) || isNaN(day) ||
-      month < 1   || month > 12 ||
-      day   < 1   || day   > 31
+      month < 1 || month > 12 ||
+      day < 1 || day > 31
     ) {
       await sendReplyMessage(
         replyToken,
@@ -178,49 +234,54 @@ app.post("/webhook", async (req, res) => {
       );
       return;
     }
-    // C: 鑑定（節替り対応）
-let honmeiStar, getsumeiStar;
 
-try {
-  const dateUtc = toUtcDate(year, month, day);
+    // 鑑定（節替り対応）
+    let honmeiStar, getsumeiStar;
+    try {
+      const dateUtc = toUtcDate(year, month, day);
+      const kigakuYear = getKigakuYear(dateUtc, year);
+      const kigakuMonth = getKigakuMonth(dateUtc, year);
 
-  // 節替りで判定した気学年・気学月
-  const kigakuYear  = getKigakuYear(dateUtc, year);
-  const kigakuMonth = getKigakuMonth(dateUtc, year);
+      honmeiStar = calculateHonmeiStarFromKigakuYear(kigakuYear);
+      getsumeiStar = calculateGetsumeiStar(kigakuMonth, honmeiStar);
+      // 五黄土星以外の重複チェック
+      if (getsumeiStar !== 5) {
+        getsumeiStar = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
+      }
+    } catch (e) {
+      await sendReplyMessage(replyToken, `万年暦エラー: ${e.message}`);
+      return;
+    }
 
-  
-  // 本命星：気学年から算出
-  honmeiStar = calculateHonmeiStarFromKigakuYear(kigakuYear);
+    // ========================================
+    // 月命星が五黄土星 → 性別を質問してセッション保存
+    // ========================================
+    if (getsumeiStar === 5) {
+      sessions[userId] = {
+        year,
+        month,
+        day,
+        honmeiStar,
+        awaitingGender: true,
+      };
+      await sendReplyMessage(
+        replyToken,
+        "あなたの月命星は五黄土星にあたります🌟\n" +
+          "より正確な鑑定のために、性別を教えてください😊\n\n" +
+          "「男性」または「女性」とご入力ください。"
+      );
+      return;
+    }
 
-
-  // 月命星：西暦月ではなく「気学月」を使う
-  getsumeiStar = calculateGetsumeiStar(kigakuMonth, honmeiStar);
-  getsumeiStar = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
-
-} catch (e) {
-  await sendReplyMessage(
-    replyToken,
-    `万年暦エラー: ${e.message}`
-  );
-  return;
-}
-
-
-
-    const resultText =
-      `宿命診断へご参加ありがとうございます✨\n\n`+
-      `・あなたの本命星：${nineStarKiMapping[honmeiStar]}\n`+
-      `・あなたの月命星：${nineStarKiMapping[getsumeiStar]}\n\n`+
-      `・あなたの本質・性格 \n${honmeiStarTraits[honmeiStar]}\n\n`+
-      `・あなたの内面・精神面 \n${getsumeiStarTraits[getsumeiStar]}\n\n`+
-      `${generateCautionAdvice(honmeiStar)}\n\n`+
-      `ぜひ意識してみてくださいね😊あなただけの宿命やバイオリズムなどはさらに詳しく鑑定でお話しできます。`;
-
+    // 通常の結果返却
+    const resultText = buildResultText(honmeiStar, getsumeiStar);
     await sendReplyMessage(replyToken, resultText);
     return;
   }
 
+  // ========================================
   // C: 先頭数字かつ"/"含むが不正
+  // ========================================
   if (/^[0-9]/.test(text) && text.includes("/")) {
     await sendReplyMessage(
       replyToken,
@@ -238,7 +299,12 @@ async function sendReplyMessage(replyToken, message) {
     await axios.post(
       "https://api.line.me/v2/bot/message/reply",
       { replyToken, messages: [{ type: "text", text: message }] },
-      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}` } }
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+        },
+      }
     );
     console.log("✅ 返信メッセージを送信しました:", message);
   } catch (error) {
