@@ -244,8 +244,9 @@ app.post("/webhook", async (req, res) => {
 
       honmeiStar = calculateHonmeiStarFromKigakuYear(kigakuYear);
       getsumeiStar = calculateGetsumeiStar(kigakuMonth, honmeiStar);
-      // 五黄土星以外の重複チェック
-      if (getsumeiStar !== 5) {
+      // 本命星と月命星が同じ場合の変換
+      // （五黄土星どうしの場合だけは、性別で変換するため除く）
+      if (!(honmeiStar === 5 && getsumeiStar === 5)) {
         getsumeiStar = adjustDuplicateGetsumeiStar(honmeiStar, getsumeiStar);
       }
     } catch (e) {
@@ -254,9 +255,10 @@ app.post("/webhook", async (req, res) => {
     }
 
     // ========================================
-    // 月命星が五黄土星 → 性別を質問してセッション保存
+    // 本命星も月命星もどちらも五黄土星 → 性別を質問してセッション保存
+    // （月命星だけ五黄の場合は、性別を聞かず五黄土星のまま鑑定）
     // ========================================
-    if (getsumeiStar === 5) {
+    if (honmeiStar === 5 && getsumeiStar === 5) {
       sessions[userId] = {
         year,
         month,
