@@ -152,7 +152,7 @@ const buildResultText = (honmeiStar, getsumeiStar, gender = undefined) => {
     `・あなたの本質・性格 \n${honmeiStarTraits[honmeiStar]}\n\n` +
     `・あなたの内面・精神面 \n${getsumeiStarTraits[getsumeiStar]}\n\n` +
     `${generateCautionAdvice(honmeiStar)}\n\n` +
-    `ぜひ意識してみてくださいね😊あなただけの宿命やバイオリズムなどはさらに詳しく鑑定でお話しできます。`
+    `ぜひ意識してみてくださいね😊あなただけの宿命やバイオリズムなど、さらに詳しく吉活アプリやポータルでご確認いただけます。`
   );
 };
 
